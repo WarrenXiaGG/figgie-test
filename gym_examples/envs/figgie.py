@@ -141,6 +141,10 @@ class FiggieEnv(gym.Env):
                                                            2,2,2,2]))
 
 
+        # transaction history
+        self.transaction_history = [] # seller, buyer, color, money
+
+
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
 
@@ -198,6 +202,7 @@ class FiggieEnv(gym.Env):
         for agent in range(self.num_agents):
             self.money[agent] += self.cards[agent][self.goal_suit]*10
         print("End of round:",self.money, "Bonus winner:", bonus_winner, "Cards",self.cards,"Goal",self.goal_suit)
+    
     def reset_game(self):
         #spades,clubs,diamonds,hearts
         self.bidders.fill(-1)
@@ -261,6 +266,7 @@ class FiggieEnv(gym.Env):
         observation = self._get_obs(0)
         print(observation)
         info = self._get_info()
+        info["transaction_history"] = self.transaction_history
 
         if self.render_mode == "human":
             self._render_frame()
@@ -302,6 +308,7 @@ class FiggieEnv(gym.Env):
         for i in range(4):
             if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
                 print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
+                self.transaction_history.append([self.bidders[i], agentid, i, self.bids[i]])
                 self.money[agentid] -= self.offers[i]
                 self.money[self.offerers[i]] += self.offers[i]
                 print(self.money)
@@ -321,6 +328,7 @@ class FiggieEnv(gym.Env):
             for i in range(4):
                 if self.cards[agentid][i] > 0 and sell[i] == 1 and not (self.bidders[i] == agentid) and not (self.bidders[i] == -1):
                     print("{} sells {} to {} for ${}".format(agentid,i,self.bidders[i],self.bids[i]))
+                    self.transaction_history.append([agentid, self.bidders[i], i, self.bids[i]])
                     self.money[agentid] += self.bids[i]
                     self.money[self.bidders[i]] -= self.bids[i]
                     print(self.money)
@@ -367,6 +375,8 @@ class FiggieEnv(gym.Env):
 
         if self.render_mode == "human":
             self._render_frame()
+
+        info["transaction_history"] = self.transaction_history
 
         return observation, reward, terminated, False, info
 
