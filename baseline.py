@@ -179,21 +179,23 @@ num_agents = wrapped_env.get_wrapper_attr('num_agents')
 if args.mode == "noise":
     policy = NoiseTrader(obs)
 elif args.mode == "fundamental":
-    policy = Fundamentalist(obs, num_agents, agentid=4)
+    policy = Fundamentalist(obs, num_agents, agentid=0)
 else:
     raise NotImplementedError
 
 curr_player = 0
+terminated = False
 
 for _ in range(500):
-    # player4: NoiseTrader, player0-3: random
-    if curr_player < 4:
+    # player0: NoiseTrader, player1-4: random
+    if curr_player > 0:
         action = wrapped_env.action_space.sample()
+        _, _, terminated, truncated, _ = wrapped_env.step(action)
     else:
         action = policy.get_action(obs, info)
-    obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        obs, reward, terminated, truncated, info = wrapped_env.step(action)
     if terminated:
         wrapped_env.end_round()
         break
     curr_player = (curr_player + 1) % 5
-    #print(observation)
+    # print(observation)

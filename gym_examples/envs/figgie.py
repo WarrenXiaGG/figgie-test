@@ -308,7 +308,7 @@ class FiggieEnv(gym.Env):
         for i in range(4):
             if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
                 print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
-                self.transaction_history.append([self.bidders[i], agentid, i, self.bids[i]])
+                self.transaction_history.append([self.offerers[i], agentid, i, self.offers[i]])
                 self.money[agentid] -= self.offers[i]
                 self.money[self.offerers[i]] += self.offers[i]
                 print(self.money)
