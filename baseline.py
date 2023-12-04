@@ -164,38 +164,39 @@ class Fundamentalist:
         # self.delete_outdated_transactions()
         return action
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--mode', choices=["noise", "fundamental", "bottom"], default="noise")
-args = parser.parse_args()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', choices=["noise", "fundamental", "bottom"], default="noise")
+    args = parser.parse_args()
 
 
-env = gymnasium.make("gym_examples/Figgie-v0")
-wrapped_env = gymnasium.wrappers.RecordEpisodeStatistics(env, 50)
+    env = gymnasium.make("gym_examples/Figgie-v0")
+    wrapped_env = gymnasium.wrappers.RecordEpisodeStatistics(env, 50)
 
-obs,info = wrapped_env.reset()
-action_lookup = wrapped_env.get_wrapper_attr('action_lookup')
-num_agents = wrapped_env.get_wrapper_attr('num_agents')
+    obs,info = wrapped_env.reset()
+    action_lookup = wrapped_env.get_wrapper_attr('action_lookup')
+    num_agents = wrapped_env.get_wrapper_attr('num_agents')
 
-if args.mode == "noise":
-    policy = NoiseTrader(obs)
-elif args.mode == "fundamental":
-    policy = Fundamentalist(obs, num_agents, agentid=0)
-else:
-    raise NotImplementedError
-
-curr_player = 0
-terminated = False
-
-for _ in range(500):
-    # player0: NoiseTrader, player1-4: random
-    if curr_player > 0:
-        action = wrapped_env.action_space.sample()
-        _, _, terminated, truncated, _ = wrapped_env.step(action)
+    if args.mode == "noise":
+        policy = NoiseTrader(obs)
+    elif args.mode == "fundamental":
+        policy = Fundamentalist(obs, num_agents, agentid=0)
     else:
-        action = policy.get_action(obs, info)
-        obs, reward, terminated, truncated, info = wrapped_env.step(action)
-    if terminated:
-        wrapped_env.end_round()
-        break
-    curr_player = (curr_player + 1) % 5
+        raise NotImplementedError
+
+    curr_player = 0
+    terminated = False
+
+    for _ in range(500):
+        # player0: NoiseTrader, player1-4: random
+        if curr_player > 0:
+            action = wrapped_env.action_space.sample()
+            _, _, terminated, truncated, _ = wrapped_env.step(action)
+        else:
+            action = policy.get_action(obs, info)
+            obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        if terminated:
+            wrapped_env.end_round()
+            break
+        curr_player = (curr_player + 1) % 5
     # print(observation)
