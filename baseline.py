@@ -5,6 +5,7 @@ import random
 import numpy as np
 import math
 
+action_lookup = np.array([0,1,2,4,8,16])
 
 def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
     '''
@@ -58,6 +59,28 @@ class NoiseTrader:
             else:
                 pb[i] *= np.exp(np.random.normal(0, self.sigma))
         action = get_action_from_expected_value(pb, pb, obs["bids"], obs["offers"])  
+        return action
+
+class RandomTrader:
+    def __init__(self, init_obs):
+        self.sigma = 1
+
+    def get_action(self, obs, info):
+        dec = random.random()
+        action = np.zeros((16), dtype=int)
+        if dec < 0.5:
+            dec = random.random()
+            suit = random.randint(0,3)
+            if dec < 0.25:
+                action[8+suit] = 1
+            elif dec < 0.5:
+                action[12+suit] = 1
+            elif dec < 0.75:
+                act = random.randint(0,5)
+                action[suit] = act
+            else:
+                act = random.randint(0,5)
+                action[suit+4] = act
         return action
 
 # each line represents a possible deck setting.
