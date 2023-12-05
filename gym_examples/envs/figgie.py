@@ -93,7 +93,6 @@ Let us look at the source code of ``GridWorldEnv`` piece by piece:
 # declaration of ``GridWorldEnv`` and the implementation of ``__init__``:
 
 import numpy as np
-import pygame
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -228,8 +227,10 @@ class FiggieEnv(gym.Env):
         #print("Dealt",self.cards)
         self.cards = self.cards.astype(int) 
         self.goal_suit = goal_suit_lookup[np.argmax(self.suit_counts)]
+        self.original_cards = np.copy(self.cards)
         self.curr_round = 0
         self.curr_player = 0
+        self.card_counts.fill(0)
         
 
 # %%
@@ -269,6 +270,7 @@ class FiggieEnv(gym.Env):
         self.reset_game()
 
         observation = self._get_obs(0)
+        self.transaction_history = []
         #print(observation)
         info = self._get_info()
         info["transaction_history"] = self.transaction_history
@@ -292,13 +294,15 @@ class FiggieEnv(gym.Env):
 # ``GridWorldEnv``, computing ``reward`` is trivial once we know
 # ``done``.To gather ``observation`` and ``info``, we can again make
 # use of ``_get_obs`` and ``_get_info``:
-    def takestep(self, action):
-        agentid = self.curr_player
+    def takestep(self, action,i):
+        agentid = i
         
         bids = np.array(action[0:4])
         offers = np.array(action[4:8])
         buy = np.array(action[8:12])
         sell = np.array(action[12:16])
+
+        #print(bids)
         #print("Bids",self.action_lookup[bids])
         #print("Offers",self.action_lookup[offers])
         #print("Buy",buy)
@@ -311,16 +315,16 @@ class FiggieEnv(gym.Env):
         #Penalize invalid moves
         for i in range(4):
             if buy[i] == 1 and (self.offerers[i] == agentid):
-                reward -= 1
+                reward -= 0.5
             if sell[i] == 1 and (self.bidders[i] == agentid):
-                reward -= 1
+                reward -= 0.5
         
         #process buy, figgie lets you go into the negatives
         
         #Check if you are buying from yourself and if offers are valid
         for i in range(4):
             if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
-                print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
+                #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
                 self.transaction_history.append([self.offerers[i], agentid, i, self.offers[i]])
 
                 self.card_counts[agentid][i] += 1
@@ -328,7 +332,7 @@ class FiggieEnv(gym.Env):
                 
                 self.money[agentid] -= self.offers[i]
                 self.money[self.offerers[i]] += self.offers[i]
-                print(self.money)
+                #print(self.money)
                 self.cards[self.offerers[i]][i] -= 1
                 self.cards[agentid][i] += 1
                 actions_invalid = True
@@ -344,7 +348,7 @@ class FiggieEnv(gym.Env):
         if not actions_invalid:
             for i in range(4):
                 if self.cards[agentid][i] > 0 and sell[i] == 1 and not (self.bidders[i] == agentid) and not (self.bidders[i] == -1):
-                    print("{} sells {} to {} for ${}".format(agentid,i,self.bidders[i],self.bids[i]))
+                    #print("{} sells {} to {} for ${}".format(agentid,i,self.bidders[i],self.bids[i]))
                     self.transaction_history.append([agentid, self.bidders[i], i, self.bids[i]])
 
                     self.card_counts[self.bidders[i]][i] += 1
@@ -352,7 +356,7 @@ class FiggieEnv(gym.Env):
                     
                     self.money[agentid] += self.bids[i]
                     self.money[self.bidders[i]] -= self.bids[i]
-                    print(self.money)
+                    #print(self.money)
                     self.cards[agentid][i] -= 1
                     self.cards[self.bidders[i]][i] += 1
                     actions_invalid = True
@@ -406,16 +410,26 @@ class FiggieEnv(gym.Env):
         
         for i in range(self.num_agents):
             if self.agents[i] == "ppo":
-                observation, r, terminated, _ , info = self.takestep(action)
+                observation, r, terminated, _ , info = self.takestep(action,i)
                 reward += r
             else:
-                observation,_, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info))
+                observation,_, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i)
         if terminated == True:
             bonus_winner = self.end_round()
             #Incentivize getting money
-            reward += (self.money[0] - self.money_per_agent)/10
+            if np.argmax(self.money) == 0:
+                reward += 20
+                reward += (self.money[0] - self.money_per_agent)/30
+            else:
+                reward += (self.money[0]-self.money[np.argmax(self.money)])/4
             #Incentivize getting goal suits
-            reward += self.cards[0][self.goal_suit]*10
+            for suit in range(4):
+                delta = self.cards[0][suit]-self.original_cards[0][suit]
+                if suit == self.goal_suit:
+                    delta *= 4
+                else:
+                    delta *= -2
+                #reward += delta
             #if 0 in bonus_winner and (self.money[0] - self.money_per_agent) > 30:
             #    reward += 10
             #print("Reward:",reward)

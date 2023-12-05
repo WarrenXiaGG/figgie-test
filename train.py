@@ -3,17 +3,18 @@ import gymnasium
 
 import gym_examples
 
-from baseline import NoiseTrader,Fundamentalist
+from baseline import NoiseTrader,Fundamentalist,RandomTrader
 
 
 noisetrader = NoiseTrader([])
+randomtrader = RandomTrader([])
 fundamentalist = Fundamentalist({'cards':[0,0,0,0]}, 5, 0)
 
-env = gymnasium.make("gym_examples/Figgie-v0",agents=["ppo",noisetrader,noisetrader,noisetrader,noisetrader])
+env = gymnasium.make("gym_examples/Figgie-v0",agents=["ppo",noisetrader,randomtrader,randomtrader,noisetrader])
 wrapped_env = gymnasium.wrappers.RecordEpisodeStatistics(env, 50)
 
 model = PPO("MultiInputPolicy", wrapped_env, verbose=1)
-model.learn(total_timesteps=25000)
+model.learn(total_timesteps=2000000)
 model.save("ppo_figgie")
 """
 obs,info = wrapped_env.reset()
