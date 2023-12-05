@@ -132,7 +132,8 @@ class FiggieEnv(gym.Env):
                 "cards": spaces.Box(0, 13, shape=(4,), dtype=int),
                 "numcards": spaces.Box(0, 41, shape=(self.num_agents,), dtype=int),
                 "you": spaces.Box(0, 2, shape=(self.num_agents,), dtype=int),
-                "cardcounts": spaces.Box(0,41,shape=(self.num_agents,4), dtype=int)
+                "cardcounts": spaces.Box(0,41,shape=(self.num_agents,4), dtype=int),
+                "stepsremaining":spaces.Box(0,1,shape=(1,),dtype=float),
             }
         )
 
@@ -187,7 +188,8 @@ class FiggieEnv(gym.Env):
                 offerer[i][self.offerers[i]] = 1
         
         return {"money": self.money, "bids": self.bids, "offers": self.offers, "bidder":bidder, "offerer":offerer,
-                "cards": self.cards[agent_id], "numcards": numcards, "you": you,"cardcounts": self.card_counts}
+                "cards": self.cards[agent_id], "numcards": numcards, "you": you,"cardcounts": self.card_counts,
+                "stepsremaining":np.array([((self.round_limit-self.curr_round)/self.round_limit)]),}
 
 # %%
 # We can also implement a similar method for the auxiliary information
@@ -426,10 +428,10 @@ class FiggieEnv(gym.Env):
             for suit in range(4):
                 delta = self.cards[0][suit]-self.original_cards[0][suit]
                 if suit == self.goal_suit:
-                    delta *= 4
+                    delta *= 0
                 else:
                     delta *= -2
-                #reward += delta
+                reward += delta
             #if 0 in bonus_winner and (self.money[0] - self.money_per_agent) > 30:
             #    reward += 10
             #print("Reward:",reward)
