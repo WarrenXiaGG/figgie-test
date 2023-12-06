@@ -130,20 +130,26 @@ class FiggieEnv(gym.Env):
                 "offers": spaces.Box(0, self.offer_limit+2, shape=(4,), dtype=int),
                 "bidder": spaces.Box(0, 2, shape=(4,self.num_agents), dtype=int),
                 "offerer": spaces.Box(0, 2, shape=(4,self.num_agents), dtype=int),
+                # "bidder": spaces.Box(0, self.num_agents, shape=(4,), dtype=int),
+                # "offerer": spaces.Box(0, self.num_agents, shape=(4,), dtype=int),
                 "cards": spaces.Box(0, 13, shape=(4,), dtype=int),
                 "numcards": spaces.Box(0, 41, shape=(self.num_agents,), dtype=int),
                 "you": spaces.Box(0, 2, shape=(self.num_agents,), dtype=int),
-                "cardcounts": spaces.Box(0,41,shape=(self.num_agents,4), dtype=int),
+                # "you": spaces.Box(0, self.num_agents, shape=(1,), dtype=int),
+                "cardcounts": spaces.Box(0,13,shape=(self.num_agents,4), dtype=int),
                 "stepsremaining":spaces.Box(0,1,shape=(1,),dtype=float),
             }
         )
 
         # penny up, penny down, buy, sell
         action_size = len(self.action_lookup)
+        # self.action_space = spaces.MultiDiscrete(np.array([action_size,action_size,action_size,action_size,
+        #                                                    action_size,action_size,action_size,action_size,
+        #                                                    2,2,2,2,
+        #                                                    2,2,2,2]))
+        
         self.action_space = spaces.MultiDiscrete(np.array([action_size,action_size,action_size,action_size,
-                                                           action_size,action_size,action_size,action_size,
-                                                           2,2,2,2,
-                                                           2,2,2,2]))
+                                                           action_size,action_size,action_size,action_size,]))
 
 
         # transaction history
@@ -177,6 +183,7 @@ class FiggieEnv(gym.Env):
     def _get_obs(self,agent_id):
         you = np.zeros((self.num_agents),dtype='i')
         you[agent_id] = 1
+        # you = agent_id
 
         numcards = np.sum(self.cards, axis=1).astype(int)
         bidder = np.zeros((4,self.num_agents),dtype='i')
@@ -187,6 +194,8 @@ class FiggieEnv(gym.Env):
                 bidder[i][self.bidders[i]] = 1
             if self.offerers[i] >= 0:
                 offerer[i][self.offerers[i]] = 1
+        # bidder = self.bidders
+        # offerer = self.offerers
         
         return {"money": self.money, "bids": self.bids, "offers": self.offers, "bidder":bidder, "offerer":offerer,
                 "cards": self.cards[agent_id], "numcards": numcards, "you": you,"cardcounts": self.card_counts,
@@ -209,7 +218,8 @@ class FiggieEnv(gym.Env):
             self.money[agent] += self.cards[agent][self.goal_suit]*10
         if self.output_debug_info:
             print("End of round:",self.money, "Bonus winner:", bonus_winner, "Cards:",self.cards, "Goal suit:",self.goal_suit)
-        return bonus_winner
+        stats = {'winner':np.argmax(self.money), 'bonus_winner':bonus_winner, 'money':self.money, 'goal_suit':self.goal_suit, 'transaction':self.transaction_history, 'cards':self.cards}
+        return stats
     
     def reset_game(self):
         #spades,clubs,diamonds,hearts
@@ -298,13 +308,120 @@ class FiggieEnv(gym.Env):
 # ``GridWorldEnv``, computing ``reward`` is trivial once we know
 # ``done``.To gather ``observation`` and ``info``, we can again make
 # use of ``_get_obs`` and ``_get_info``:
+    # def takestep(self, action,i):
+    #     agentid = i
+        
+    #     bids = np.array(action[0:4])
+    #     offers = np.array(action[4:8])
+    #     buy = np.array(action[8:12])
+    #     sell = np.array(action[12:16])
+
+    #     #print(bids)
+    #     #print("Bids",self.action_lookup[bids])
+    #     #print("Offers",self.action_lookup[offers])
+    #     #print("Buy",buy)
+    #     #print("Sell",sell)
+
+    #     actions_invalid = False
+
+    #     reward = 0
+
+    #     #Penalize invalid moves
+    #     for i in range(4):
+    #         if buy[i] == 1 and (self.offerers[i] == agentid):
+    #             reward -= 0.5
+    #         if sell[i] == 1 and (self.bidders[i] == agentid):
+    #             reward -= 0.5
+        
+    #     #process buy, figgie lets you go into the negatives
+        
+    #     #Check if you are buying from yourself and if offers are valid
+    #     for i in range(4):
+    #         if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
+    #             #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
+    #             self.transaction_history.append([self.offerers[i], agentid, i, self.offers[i]])
+
+    #             self.card_counts[agentid][i] += 1
+    #             self.card_counts[self.offerers[i]][i] = max(self.card_counts[self.offerers[i]][i] - 1, 0)
+                
+    #             self.money[agentid] -= self.offers[i]
+    #             self.money[self.offerers[i]] += self.offers[i]
+    #             #print(self.money)
+    #             self.cards[self.offerers[i]][i] -= 1
+    #             self.cards[agentid][i] += 1
+    #             actions_invalid = True
+    #             self.bidders.fill(-1)
+    #             self.offerers.fill(-1)
+    #             self.bids.fill(0)
+    #             self.offers.fill(self.offer_limit+1)
+    #             break
+
+    #     #Process sell, figgie lets you go into the negatives
+
+    #     #Check if you are selling to yourself and if offers are valid
+    #     if not actions_invalid:
+    #         for i in range(4):
+    #             if self.cards[agentid][i] > 0 and sell[i] == 1 and not (self.bidders[i] == agentid) and not (self.bidders[i] == -1):
+    #                 #print("{} sells {} to {} for ${}".format(agentid,i,self.bidders[i],self.bids[i]))
+    #                 self.transaction_history.append([agentid, self.bidders[i], i, self.bids[i]])
+
+    #                 self.card_counts[self.bidders[i]][i] += 1
+    #                 self.card_counts[agentid][i] = max(self.card_counts[agentid][i] - 1, 0)
+                    
+    #                 self.money[agentid] += self.bids[i]
+    #                 self.money[self.bidders[i]] -= self.bids[i]
+    #                 #print(self.money)
+    #                 self.cards[agentid][i] -= 1
+    #                 self.cards[self.bidders[i]][i] += 1
+    #                 actions_invalid = True
+    #                 self.bidders.fill(-1)
+    #                 self.offerers.fill(-1)
+    #                 self.bids.fill(0)
+    #                 self.offers.fill(self.offer_limit+1)
+    #                 break
+     
+
+    #     #original figgie game doesn't check if you can actually afford to satsify this order
+
+    #     if not actions_invalid:
+    #         #check if we have the cards and the money
+    #         enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
+    #         if enoughmoneytobid and np.all(self.cards[agentid][np.nonzero(offers)]):
+    #             self.bids += self.action_lookup[bids]
+    #             self.bids = np.clip(self.bids,0,self.bid_limit)
+    #             self.offers -= self.action_lookup[offers]
+    #             self.offers = np.clip(self.offers,0,self.offer_limit+1)
+
+    #             self.bidders[np.nonzero(bids)] = agentid
+    #             self.offerers[np.nonzero(offers)] = agentid
+                
+
+
+    #     self.curr_player += 1
+    #     if self.curr_player == self.num_agents:
+    #         self.curr_player = 0
+    #         self.curr_round += 1
+            
+    #     if self.curr_round == self.round_limit:
+    #         terminated = True
+    #     else:
+    #         terminated = False
+        
+    #     observation = self._get_obs(self.curr_player)
+    #     info = self._get_info()
+
+    #     if self.render_mode == "human":
+    #         self._render_frame()
+
+    #     info["transaction_history"] = self.transaction_history
+
+    #     return observation, reward, terminated, False, info
+    
     def takestep(self, action,i):
         agentid = i
         
         bids = np.array(action[0:4])
         offers = np.array(action[4:8])
-        buy = np.array(action[8:12])
-        sell = np.array(action[12:16])
 
         #print(bids)
         #print("Bids",self.action_lookup[bids])
@@ -312,80 +429,67 @@ class FiggieEnv(gym.Env):
         #print("Buy",buy)
         #print("Sell",sell)
 
-        actions_invalid = False
-
         reward = 0
 
-        #Penalize invalid moves
-        for i in range(4):
-            if buy[i] == 1 and (self.offerers[i] == agentid):
-                reward -= 0.5
-            if sell[i] == 1 and (self.bidders[i] == agentid):
-                reward -= 0.5
+        #check if we have the cards and the money
+        enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
+        if enoughmoneytobid:
+            self.bids += self.action_lookup[bids]
+            self.bids = np.clip(self.bids,0,self.bid_limit)
+            self.bidders[np.nonzero(bids)] = agentid
+        else:
+            reward -= 0.5
+        
+        if np.all(self.cards[agentid][np.nonzero(offers)]):
+            self.offers -= self.action_lookup[offers]
+            self.offers = np.clip(self.offers,0,self.offer_limit+1)
+            self.offerers[np.nonzero(offers)] = agentid
+        else:
+            reward -= 0.5
         
         #process buy, figgie lets you go into the negatives
         
         #Check if you are buying from yourself and if offers are valid
         for i in range(4):
-            if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
-                #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
-                self.transaction_history.append([self.offerers[i], agentid, i, self.offers[i]])
 
-                self.card_counts[agentid][i] += 1
-                self.card_counts[self.offerers[i]][i] = max(self.card_counts[self.offerers[i]][i] - 1, 0)
+            if self.bids[i] == 0 or self.offers[i] == self.offer_limit+1:
+                continue
+
+            if self.bids[i] >= self.offers[i]:
                 
-                self.money[agentid] -= self.offers[i]
-                self.money[self.offerers[i]] += self.offers[i]
+                seller = self.offerers[i]
+                buyer = self.bidders[i]
+                price = self.offers[i] # TODO: not sure about setting this to what value
+
+                assert seller != -1 and buyer != -1
+
+                if seller == buyer:
+                    if seller == agentid:
+                        reward -= 0.5
+                    continue
+
+                if self.money[buyer] < price:
+                    if buyer == agentid:
+                        reward -= 0.5
+                    continue
+
+                #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
+                self.transaction_history.append([seller, buyer, i, price])
+
+                self.card_counts[buyer][i] += 1
+                self.card_counts[seller][i] = max(self.card_counts[seller][i] - 1, 0)
+                
+                self.money[buyer] -= price
+                self.money[seller] += price
                 #print(self.money)
-                self.cards[self.offerers[i]][i] -= 1
-                self.cards[agentid][i] += 1
-                actions_invalid = True
+                self.cards[seller][i] -= 1
+                self.cards[buyer][i] += 1
+                
                 self.bidders.fill(-1)
                 self.offerers.fill(-1)
                 self.bids.fill(0)
                 self.offers.fill(self.offer_limit+1)
-                break
-
-        #Process sell, figgie lets you go into the negatives
-
-        #Check if you are selling to yourself and if offers are valid
-        if not actions_invalid:
-            for i in range(4):
-                if self.cards[agentid][i] > 0 and sell[i] == 1 and not (self.bidders[i] == agentid) and not (self.bidders[i] == -1):
-                    #print("{} sells {} to {} for ${}".format(agentid,i,self.bidders[i],self.bids[i]))
-                    self.transaction_history.append([agentid, self.bidders[i], i, self.bids[i]])
-
-                    self.card_counts[self.bidders[i]][i] += 1
-                    self.card_counts[agentid][i] = max(self.card_counts[agentid][i] - 1, 0)
-                    
-                    self.money[agentid] += self.bids[i]
-                    self.money[self.bidders[i]] -= self.bids[i]
-                    #print(self.money)
-                    self.cards[agentid][i] -= 1
-                    self.cards[self.bidders[i]][i] += 1
-                    actions_invalid = True
-                    self.bidders.fill(-1)
-                    self.offerers.fill(-1)
-                    self.bids.fill(0)
-                    self.offers.fill(self.offer_limit+1)
-                    break
-     
-
-        #original figgie game doesn't check if you can actually afford to satsify this order
-
-        if not actions_invalid:
-            #check if we have the cards and the money
-            enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
-            if enoughmoneytobid and np.all(self.cards[agentid][np.nonzero(offers)]):
-                self.bids += self.action_lookup[bids]
-                self.bids = np.clip(self.bids,0,self.bid_limit)
-                self.offers -= self.action_lookup[offers]
-                self.offers = np.clip(self.offers,0,self.offer_limit+1)
-
-                self.bidders[np.nonzero(bids)] = agentid
-                self.offerers[np.nonzero(offers)] = agentid
-                
-
+                # break
 
         self.curr_player += 1
         if self.curr_player == self.num_agents:
@@ -407,6 +511,7 @@ class FiggieEnv(gym.Env):
 
         return observation, reward, terminated, False, info
     
+
     def step(self, action):
         observation = None
         reward = 0
@@ -417,13 +522,17 @@ class FiggieEnv(gym.Env):
             if self.agents[i] == "ppo":
                 observation, r, terminated, _ , info = self.takestep(action,i)
                 reward += r
+                # if len(self.transaction_history) > 0:
+                #     import ipdb
+                #     ipdb.set_trace()
             else:
                 # make sure agents are not cheating by seeing others' observation
                 # the info only contains transaction history which is public, so no worries
                 observation, _, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i)
 
         if terminated == True:
-            bonus_winner = self.end_round()
+            stats = self.end_round()
+            info["stats"] = stats
             #Incentivize getting money
             if np.argmax(self.money) == 0:
                 reward += 20
@@ -442,7 +551,8 @@ class FiggieEnv(gym.Env):
             #    reward += 10
             if self.output_debug_info:
                 print(f"End of Round! Money:{self.money[0]}, Last Step Reward:{reward}")
-        return observation,reward,terminated,False,info
+                print(f"transactions:{info['transaction_history']}")
+        return observation, reward, terminated, False, info
 # %%
 # Rendering
 # ~~~~~~~~~

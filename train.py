@@ -27,7 +27,7 @@ for i in range(5):
     elif args.agents[i] == "R":
         agents.append(RandomTrader([]))
     elif args.agents[i] == "F":
-        agents.append(Fundamentalist({'cards':[0,0,0,0]}, 5, 0))
+        agents.append(Fundamentalist({'cards':[0,0,0,0]}, 5, i))
     else:
         raise NotImplementedError
 
@@ -39,7 +39,8 @@ if args.skip_train == True:
 else:
     model = PPO("MultiInputPolicy", wrapped_env, verbose=1)
     # Note from xzy: in order to use progress_bar, install 'tqdm' and 'rich' packages
-    model.learn(total_timesteps=args.train_step, progress_bar=True)
+    # model.learn(total_timesteps=args.train_step, progress_bar=True)
+    model.learn(total_timesteps=args.train_step)
     model.save(args.model_name)
 
 if args.skip_eval == False:
@@ -53,6 +54,7 @@ if args.skip_eval == False:
 
     # Evaluate the average earned money
     delta_money = []
+    winner = []
     for epoch in range(args.eval_epoch):
         obs, info = wrapped_env.reset()
         terminated = False
@@ -60,9 +62,11 @@ if args.skip_eval == False:
             action, _ = model.predict(obs)
             obs, rewards, terminated, truncated, info = wrapped_env.step(action)
             if terminated:
-                delta_money.append(obs['money'][0] - 500)
+                winner.append(args.agents[info['stats']['winner']])
+                delta_money.append(obs['money'][0] - 500 - (200/len(args.agents)))
                 break
     print(delta_money)
+    print(winner)
     mean_money = np.mean(delta_money)
     std_money = np.std(delta_money)
     print(f"Mean Money: {mean_money}, Std Money: {std_money}")
