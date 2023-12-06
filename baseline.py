@@ -122,7 +122,6 @@ class Fundamentalist:
     def deck_likelihood(self):
         '''
         Calc deck likelihood distribution.
-        TODO: still has bug here!! ValueError
         '''
         tot_card_seen = [0] * 4
         for i in range(4):
@@ -209,6 +208,8 @@ if __name__ == "__main__":
 
     curr_player = 0
     terminated = False
+
+    # Note: this following part is wrong now since the figgie step() function changed
 
     for _ in range(500):
         # player0: NoiseTrader, player1-4: random

@@ -101,7 +101,7 @@ from gymnasium import spaces
 class FiggieEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None,agents=[],round_limit = 100):
+    def __init__(self, render_mode=None,agents=[],round_limit = 100, output_debug_info=False):
         self.window_size = 512  # The size of the PyGame window
         self.num_agents = len(agents)
         self.round_limit = round_limit
@@ -119,6 +119,8 @@ class FiggieEnv(gym.Env):
         self.action_lookup = np.array([0,1,2,4,8,16])
         self.agents = agents
         self.card_counts = np.zeros((self.num_agents,4),dtype='i')
+        self.output_debug_info = output_debug_info
+        self.last_round_observation = [None]*self.num_agents
         print(agents)
 
         #Money per agent, buy offers, sell offers, bool array for if you are the one selling or buying, your cards, num cards,you
@@ -206,7 +208,8 @@ class FiggieEnv(gym.Env):
         self.money[bonus_winner] += bonus//len(bonus_winner)
         for agent in range(self.num_agents):
             self.money[agent] += self.cards[agent][self.goal_suit]*10
-        #print("End of round:",self.money, "Bonus winner:", bonus_winner, "Cards",self.cards,"Goal",self.goal_suit)
+        if self.output_debug_info:
+            print("End of round:",self.money, "Bonus winner:", bonus_winner, "Cards:",self.cards, "Goal suit:",self.goal_suit)
         return bonus_winner
     
     def reset_game(self):
@@ -233,6 +236,8 @@ class FiggieEnv(gym.Env):
         self.curr_round = 0
         self.curr_player = 0
         self.card_counts.fill(0)
+        for i in range(self.num_agents):
+            self.last_round_observation[i] = self._get_obs(i)
         
 
 # %%
@@ -404,6 +409,7 @@ class FiggieEnv(gym.Env):
         info["transaction_history"] = self.transaction_history
 
         return observation, reward, terminated, False, info
+    
     def step(self, action):
         observation = None
         reward = 0
@@ -415,7 +421,11 @@ class FiggieEnv(gym.Env):
                 observation, r, terminated, _ , info = self.takestep(action,i)
                 reward += r
             else:
-                observation,_, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i)
+                # make sure agents are not cheating by seeing others' observation
+                # the info only contains transaction history which is public, so no worries
+                self.last_round_observation[i], _, terminated, _ , info = \
+                    self.takestep(self.agents[i].get_action(self.last_round_observation[i],info),i)
+
         if terminated == True:
             bonus_winner = self.end_round()
             #Incentivize getting money
@@ -434,7 +444,8 @@ class FiggieEnv(gym.Env):
                 reward += delta
             #if 0 in bonus_winner and (self.money[0] - self.money_per_agent) > 30:
             #    reward += 10
-            #print("Reward:",reward)
+            if self.output_debug_info:
+                print(f"End of Round! Money:{self.money[0]}, Last Step Reward:{reward}")
         return observation,reward,terminated,False,info
 # %%
 # Rendering
