@@ -27,17 +27,19 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
             # buy
             p = random.uniform(0, pb[i])
             up_price = int(p - cur_bids[i])
-            action[8+i] = 1
-            if up_price > 0:
+            if cur_offers[i] <= p:
+                action[8+i] = 1
+            elif up_price > 0:
                 # find the best action to approx price p
-                action[i] = np.argmin(np.abs(action_lookup - up_price))
+                action[i] = min(np.searchsorted(action_lookup, up_price), 5)
         else:
             # sell
             p = random.uniform(ps[i], ps[i] * 2)
             down_price = int(cur_offers[i] - p)
-            action[12+i] = 1
-            if down_price > 0:
-                action[4+i] = np.argmin(np.abs(action_lookup - down_price))
+            if cur_bids[i] >= p:
+                action[12+i] = 1
+            elif down_price > 0:
+                action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
     return action
 
 
@@ -101,32 +103,19 @@ DECK = [
 ]
 
 class Fundamentalist:
-    def __init__(self, init_obs, num_agents, agentid):
+    def __init__(self, init_obs, num_agents):
         self.r = 2.0 # 
         self.num_agents = num_agents
-        self.agentid = agentid
         self.processed_transaction_id = 0
-        # initialize card counting
-        self.L = np.zeros((4, self.num_agents), dtype=int)
-        for i in range(4):
-            self.L[i][self.agentid] = init_obs['cards'][i]
 
-    def card_counting(self, transactions):
-        for i in range(self.processed_transaction_id, len(transactions), 1):
-            # update for the i-th transaction
-            seller, buyer, color, money = transactions[i]
-            self.L[color][buyer] += 1
-            self.L[color][seller] = max(self.L[color][seller] - 1, 0)
-        self.processed_transaction_id = len(transactions)
-
-    def deck_likelihood(self):
+    def deck_likelihood(self, cardcounts):
         '''
         Calc deck likelihood distribution.
         '''
         tot_card_seen = [0] * 4
         for i in range(4):
             for j in range(self.num_agents):
-                tot_card_seen[i] += self.L[i][j]
+                tot_card_seen[i] += cardcounts[j][i]
         comb = np.ones(12) # possible combinations of each deck
         for j, (cards, majority, payoff) in enumerate(DECK):
             for i in range(4):
@@ -179,8 +168,7 @@ class Fundamentalist:
         pass
 
     def get_action(self, obs, info):
-        self.card_counting(info["transaction_history"])
-        m = self.deck_likelihood()
+        m = self.deck_likelihood(obs["cardcounts"])
         pb, ps = self.estimate_trade_value(m, obs["cards"])
         action = get_action_from_expected_value(pb, ps, obs["bids"], obs["offers"])  
         # self.delete_outdated_transactions()

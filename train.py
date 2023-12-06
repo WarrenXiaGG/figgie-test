@@ -27,7 +27,7 @@ for i in range(5):
     elif args.agents[i] == "R":
         agents.append(RandomTrader([]))
     elif args.agents[i] == "F":
-        agents.append(Fundamentalist({'cards':[0,0,0,0]}, 5, 0))
+        agents.append(Fundamentalist({'cards':[0,0,0,0]}, 5))
     else:
         raise NotImplementedError
 
