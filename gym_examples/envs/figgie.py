@@ -423,8 +423,7 @@ class FiggieEnv(gym.Env):
             else:
                 # make sure agents are not cheating by seeing others' observation
                 # the info only contains transaction history which is public, so no worries
-                self.last_round_observation[i], _, terminated, _ , info = \
-                    self.takestep(self.agents[i].get_action(self.last_round_observation[i],info),i)
+                observation, _, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i)
 
         if terminated == True:
             bonus_winner = self.end_round()
