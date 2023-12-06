@@ -27,7 +27,7 @@ for i in range(5):
     elif args.agents[i] == "R":
         agents.append(RandomTrader([]))
     elif args.agents[i] == "F":
-        agents.append(Fundamentalist({'cards':[0,0,0,0]}, 5, i))
+        agents.append(Fundamentalist(5))
     else:
         raise NotImplementedError
 
@@ -38,7 +38,6 @@ if args.skip_train == True:
     model = PPO.load(args.model_name)
 else:
     model = PPO("MultiInputPolicy", wrapped_env, verbose=1)
-    # Note from xzy: in order to use progress_bar, install 'tqdm' and 'rich' packages
     # model.learn(total_timesteps=args.train_step, progress_bar=True)
     model.learn(total_timesteps=args.train_step)
     model.save(args.model_name)

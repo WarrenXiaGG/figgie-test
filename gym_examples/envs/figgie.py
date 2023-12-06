@@ -476,6 +476,14 @@ class FiggieEnv(gym.Env):
                 #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
                 self.transaction_history.append([seller, buyer, i, price])
 
+                # try using cardcounting reward here
+                from baseline import Fundamentalist
+                pb, ps = Fundamentalist(self.num_agents).get_estimate_value(self.card_counts, self.cards[agentid], agentid)
+                if agentid == seller:
+                    reward += (price - ps[i])/10
+                elif agentid == buyer:
+                    reward += (pb[i] - price)/10
+
                 self.card_counts[buyer][i] += 1
                 self.card_counts[seller][i] = max(self.card_counts[seller][i] - 1, 0)
                 

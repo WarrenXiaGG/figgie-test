@@ -133,23 +133,10 @@ DECK = [
 ]
 
 class Fundamentalist:
-    def __init__(self, init_obs, num_agents, agentid):
+    def __init__(self, num_agents):
         self.r = 2.0 # 
         self.num_agents = num_agents
-        self.agentid = agentid
         self.processed_transaction_id = 0
-        # # initialize card counting
-        # self.L = np.zeros((4, self.num_agents), dtype=int)
-        # for i in range(4):
-        #     self.L[i][self.agentid] = init_obs['cards'][i]
-
-    # def card_counting(self, transactions):
-    #     for i in range(self.processed_transaction_id, len(transactions), 1):
-    #         # update for the i-th transaction
-    #         seller, buyer, color, money = transactions[i]
-    #         self.L[color][buyer] += 1
-    #         self.L[color][seller] = max(self.L[color][seller] - 1, 0)
-    #     self.processed_transaction_id = len(transactions)
 
     def deck_likelihood(self, cardcounts):
         '''
@@ -211,10 +198,14 @@ class Fundamentalist:
         '''
         pass
 
+    def get_estimate_value(self, cardcounts, cards, agentid):
+        cardcounts[agentid] = cards
+        m = self.deck_likelihood(cardcounts)
+        pb, ps = self.estimate_trade_value(m, cards)
+        return pb, ps
+
     def get_action(self, obs, info):
-        # self.card_counting(info["transaction_history"])
-        m = self.deck_likelihood(obs['cardcounts'])
-        pb, ps = self.estimate_trade_value(m, obs["cards"])
+        pb, ps = self.get_estimate_value(obs['cardcounts'], obs['cards'], np.argmax(obs['you']))
         action = get_action_from_expected_value(pb, ps, obs["bids"], obs["offers"])  
         # self.delete_outdated_transactions()
         return action
