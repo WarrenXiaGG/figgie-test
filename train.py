@@ -1,5 +1,6 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 import gymnasium
 from baseline import NoiseTrader,Fundamentalist,RandomTrader
 import argparse
@@ -38,8 +39,9 @@ if args.skip_train == True:
     model = PPO.load(args.model_name)
 else:
     model = PPO("MultiInputPolicy", wrapped_env, verbose=1)
-    # model.learn(total_timesteps=args.train_step, progress_bar=True)
-    model.learn(total_timesteps=args.train_step)
+    save_interval = 100000
+    checkpoint_callback = CheckpointCallback(save_freq=save_interval, save_path=args.model_name+"_checkpoint/", name_prefix='model')
+    model.learn(total_timesteps=args.train_step, callback=CallbackList([checkpoint_callback]))
     model.save(args.model_name)
 
 if args.skip_eval == False:
