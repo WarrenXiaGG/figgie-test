@@ -120,7 +120,6 @@ class FiggieEnv(gym.Env):
         self.agents = agents
         self.card_counts = np.zeros((self.num_agents,4),dtype='i')
         self.output_debug_info = output_debug_info
-        self.last_round_observation = [None]*self.num_agents
         print(agents)
 
         #Money per agent, buy offers, sell offers, bool array for if you are the one selling or buying, your cards, num cards,you
@@ -236,8 +235,6 @@ class FiggieEnv(gym.Env):
         self.curr_round = 0
         self.curr_player = 0
         self.card_counts.fill(0)
-        for i in range(self.num_agents):
-            self.last_round_observation[i] = self._get_obs(i)
         
 
 # %%
