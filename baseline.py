@@ -28,11 +28,8 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
             # buy
             p = random.uniform(0, pb[i])
             up_price = int(p - cur_bids[i])
-            # action[8+i] = 1
             if up_price > 0:
                 # find the best action to approx price p
-                # TODO: ensure updated price is less than p
-                # action[i] = np.argmin(np.abs(action_lookup - up_price))
                 action[i] = min(np.searchsorted(action_lookup, up_price), 5)
                 try:
                     assert action[i] >= 0 and action[i] < 6
@@ -43,10 +40,7 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
             # sell
             p = random.uniform(ps[i], ps[i] * 2)
             down_price = int(cur_offers[i] - p)
-            # action[12+i] = 1
             if down_price > 0:
-                # TODO: ensure updated price is more than p
-                # action[4+i] = np.argmin(np.abs(action_lookup - down_price))
                 action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
                 assert action[4+i] >= 0 and action[4+i] < 6
     if sum([(x is None) for x in pb]) == len(pb):
@@ -89,21 +83,7 @@ class RandomTrader:
 
     def get_action(self, obs, info):
         dec = random.random()
-        # action = np.zeros((16), dtype=int)
         action = np.zeros((8), dtype=int)
-        # if dec < 0.5:
-        #     dec = random.random()
-        #     suit = random.randint(0,3)
-        #     if dec < 0.25:
-        #         action[8+suit] = 1
-        #     elif dec < 0.5:
-        #         action[12+suit] = 1
-        #     elif dec < 0.75:
-        #         act = random.randint(0,5)
-        #         action[suit] = act
-        #     else:
-        #         act = random.randint(0,5)
-        #         action[suit+4] = act
         if dec < 0.5:
             dec = random.random()
             suit = random.randint(0,3)
