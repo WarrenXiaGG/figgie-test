@@ -413,7 +413,7 @@ class FiggieEnv(gym.Env):
     
 
     def step(self, action):
-        observation = None
+        observation = self._get_obs(0)
         reward = 0
         terminated = None
         info = None

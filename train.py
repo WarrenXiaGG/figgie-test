@@ -16,7 +16,7 @@ parser.add_argument('--eval_epoch' , type=int, default=20)
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
-assert len(args.agents) == 5 and args.agents[0] == "P"
+# assert len(args.agents) == 5 and args.agents[0] == "P"
 
 
 agents = []
@@ -45,13 +45,13 @@ else:
     model.save(args.model_name)
 
 if args.skip_eval == False:
-    # Using packages to evaluate the average Reward of the trained agent
-    eval_results = evaluate_policy(model, env, n_eval_episodes=args.eval_epoch, render=False, return_episode_rewards=True)
-    print(eval_results)
-    total_rewards = eval_results[0]
-    mean_reward = np.mean(total_rewards)
-    std_reward = np.std(total_rewards)
-    print(f"Mean Reward: {mean_reward}, Std Reward: {std_reward}")
+    # # Using packages to evaluate the average Reward of the trained agent
+    # eval_results = evaluate_policy(model, env, n_eval_episodes=args.eval_epoch, render=False, return_episode_rewards=True)
+    # print(eval_results)
+    # total_rewards = eval_results[0]
+    # mean_reward = np.mean(total_rewards)
+    # std_reward = np.std(total_rewards)
+    # print(f"Mean Reward: {mean_reward}, Std Reward: {std_reward}")
 
     # Evaluate the average earned money
     delta_money = []
