@@ -12,7 +12,7 @@ parser.add_argument('--model_name', type=str, default="./models/ppo_figgie")
 parser.add_argument('--skip_train', action='store_true')
 parser.add_argument('--skip_eval', action='store_true')
 parser.add_argument('--train_step', type=int, default=2000000)
-parser.add_argument('--eval_epoch' , type=int, default=20)
+parser.add_argument('--eval_epoch' , type=int, default=100)
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
@@ -63,11 +63,13 @@ if args.skip_eval == False:
             action, _ = model.predict(obs)
             obs, rewards, terminated, truncated, info = wrapped_env.step(action)
             if terminated:
-                winner.append(args.agents[info['stats']['winner']])
+                winner.append(info['stats']['winner'])
                 delta_money.append(obs['money'][0] - 500 - (200/len(args.agents)))
                 break
-    print(delta_money)
-    print(winner)
+    # print(delta_money)
+    # print(winner)
+    win_rate = [(args.agents[i], winner.count(i) / len(winner) * 100) for i in range(len(args.agents))]
+    print(win_rate)
     mean_money = np.mean(delta_money)
     std_money = np.std(delta_money)
     print(f"Mean Money: {mean_money}, Std Money: {std_money}")
