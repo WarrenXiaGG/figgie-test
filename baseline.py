@@ -7,7 +7,7 @@ import math
 
 action_lookup = np.array([0,1,2,4,8,16])
 
-def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
+def get_action_from_expected_value(pb, ps, cur_bids, cur_offers, bidders, offerers, agentid):
     '''
     parameters:
     pb: expected value for buying cards
@@ -30,7 +30,7 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
             up_price = int(p - cur_bids[i])
             if cur_offers[i] <= p:
                 action[8+i] = 1
-            elif up_price > 0:
+            elif up_price > 0 or bidders[i] == agentid:
                 # # find the best action to approx price p
                 # action[i] = min(np.searchsorted(action_lookup, up_price), 5)
                 action[i] = p
@@ -41,7 +41,7 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
             down_price = int(cur_offers[i] - p)
             if cur_bids[i] >= p:
                 action[12+i] = 1
-            elif down_price > 0:
+            elif down_price > 0 or offerers[i] == agentid:
                 # action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
                 action[4+i] = p
     return action
@@ -237,7 +237,7 @@ class Fundamentalist:
     def get_action(self, obs, info):
         m = self.deck_likelihood(obs["cardcounts"], obs["cards"])
         pb, ps = self.estimate_trade_value(m, obs["cards"])
-        action = get_action_from_expected_value(pb, ps, obs["bids"], obs["offers"])  
+        action = get_action_from_expected_value(pb, ps, obs["bids"], obs["offers"], obs["bidders"], obs["offerers"], self.agentid)  
         # self.delete_outdated_transactions()
         return action
 

@@ -339,14 +339,30 @@ class FiggieEnv(gym.Env):
         reward = 0
 
         #check if we have the cards and the money
+
         valid_bids = np.nonzero(bids)
         valid_offers = np.nonzero(offers-(self.offer_limit+1))
         enoughmoneytobid = np.sum(bids[valid_bids]) <= self.money[agentid]
         if enoughmoneytobid and np.all(self.cards[agentid][valid_offers]):
-            self.bidders[valid_bids] = agentid
-            self.offerers[valid_offers] = agentid
-            self.bids[valid_bids] = bids[valid_bids]
-            self.offers[valid_offers] = offers[valid_offers]
+            
+            for i in range(4):
+                if bids[i] == 0:
+                    continue
+                if self.bidders[i] == agentid or self.bids[i] < bids[i]:
+                    self.bidders[i] = agentid
+                    self.bids[i] = bids[i]
+            for i in range(4):
+                if offers[i] == self.offer_limit+1:
+                    continue
+                if self.offerers[i] == agentid or self.offers[i] > offers[i]:
+                    self.offerers[i] = agentid
+                    self.offers[i] = offers[i]
+            
+            # self.bidders[valid_bids] = agentid
+            # self.offerers[valid_offers] = agentid
+            # self.bids[valid_bids] = bids[valid_bids]
+            # self.offers[valid_offers] = offers[valid_offers]
+
         
 
         #Penalize invalid moves
