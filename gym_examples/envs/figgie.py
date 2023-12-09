@@ -298,7 +298,7 @@ class FiggieEnv(gym.Env):
 # ``GridWorldEnv``, computing ``reward`` is trivial once we know
 # ``done``.To gather ``observation`` and ``info``, we can again make
 # use of ``_get_obs`` and ``_get_info``:
-    def takestep(self, action,i):
+    def takestep(self, action, i, is_discrete=False):
         agentid = i
         
         bids = np.array(action[0:4])
@@ -306,11 +306,12 @@ class FiggieEnv(gym.Env):
         buy = np.array(action[8:12])
         sell = np.array(action[12:16])
 
-        #print(bids)
-        #print("Bids",self.action_lookup[bids])
-        #print("Offers",self.action_lookup[offers])
-        #print("Buy",buy)
-        #print("Sell",sell)
+        if is_discrete == True:
+            bids += self.action_lookup[bids]
+            offers -= self.action_lookup[offers]
+
+        bids = np.clip(self.bids,0,self.bid_limit)
+        offers = np.clip(self.offers,0,self.offer_limit+1)
 
         actions_invalid = False
 
@@ -322,7 +323,16 @@ class FiggieEnv(gym.Env):
                 reward -= 0.5
             if sell[i] == 1 and (self.bidders[i] == agentid):
                 reward -= 0.5
-        
+
+        #check if we have the cards and the money
+        enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
+        if enoughmoneytobid and np.all(self.cards[agentid][np.nonzero(offers)]):
+            self.bidders[np.nonzero(bids)] = agentid
+            self.offerers[np.nonzero(offers)] = agentid
+            self.bids = bids
+            self.offers = offers
+            
+
         #process buy, figgie lets you go into the negatives
         
         #Check if you are buying from yourself and if offers are valid
@@ -369,23 +379,6 @@ class FiggieEnv(gym.Env):
                     self.bids.fill(0)
                     self.offers.fill(self.offer_limit+1)
                     break
-     
-
-        #original figgie game doesn't check if you can actually afford to satsify this order
-
-        if not actions_invalid:
-            #check if we have the cards and the money
-            enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
-            if enoughmoneytobid and np.all(self.cards[agentid][np.nonzero(offers)]):
-                self.bids += self.action_lookup[bids]
-                self.bids = np.clip(self.bids,0,self.bid_limit)
-                self.offers -= self.action_lookup[offers]
-                self.offers = np.clip(self.offers,0,self.offer_limit+1)
-
-                self.bidders[np.nonzero(bids)] = agentid
-                self.offerers[np.nonzero(offers)] = agentid
-                
-
 
         self.curr_player += 1
         if self.curr_player == self.num_agents:
@@ -408,19 +401,19 @@ class FiggieEnv(gym.Env):
         return observation, reward, terminated, False, info
     
     def step(self, action):
-        observation = None
+        observation = self._get_obs(0)
         reward = 0
         terminated = None
         info = None
         
         for i in range(self.num_agents):
             if self.agents[i] == "ppo":
-                observation, r, terminated, _ , info = self.takestep(action,i)
+                observation, r, terminated, _ , info = self.takestep(action,i, is_discrete=True)
                 reward += r
             else:
                 # make sure agents are not cheating by seeing others' observation
                 # the info only contains transaction history which is public, so no worries
-                observation, _, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i)
+                observation, _, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i, is_discrete=self.agents[i].is_discrete)
 
         if terminated == True:
             bonus_winner = self.end_round()

@@ -25,26 +25,31 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
         # randomly decide to buy or sell
         if random.choice([0,1]) == 1:
             # buy
-            p = random.uniform(0, pb[i])
+            # p = random.uniform(0, pb[i])
+            p = random.uniform(pb[i] * 0.8, pb[i] * 1.1)
             up_price = int(p - cur_bids[i])
             if cur_offers[i] <= p:
                 action[8+i] = 1
             elif up_price > 0:
-                # find the best action to approx price p
-                action[i] = min(np.searchsorted(action_lookup, up_price), 5)
+                # # find the best action to approx price p
+                # action[i] = min(np.searchsorted(action_lookup, up_price), 5)
+                action[i] = p
         else:
             # sell
-            p = random.uniform(ps[i], ps[i] * 2)
+            # p = random.uniform(ps[i], ps[i] * 2)
+            p = random.uniform(ps[i] * 0.9, ps[i] * 1.1)
             down_price = int(cur_offers[i] - p)
             if cur_bids[i] >= p:
                 action[12+i] = 1
             elif down_price > 0:
-                action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
+                # action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
+                action[4+i] = p
     return action
 
 
 class NoiseTrader:
     def __init__(self, init_obs):
+        self.is_discrete = False
         self.sigma = 1
 
     def get_action(self, obs, info):
@@ -65,6 +70,7 @@ class NoiseTrader:
 
 class RandomTrader:
     def __init__(self, init_obs):
+        self.is_discrete = True
         self.sigma = 1
 
     def get_action(self, obs, info):
@@ -88,23 +94,24 @@ class RandomTrader:
 # each line represents a possible deck setting.
 # [spades, clubs, hearts, diamonds], majority card number, goal suit payoff
 DECK = [
-    ([12,8,10,10],5,120),
-    ([12,10,8,10],6,100),
-    ([12,10,10,8],6,100),
     ([8,12,10,10],5,120),
     ([10,12,8,10],6,100),
     ([10,12,10,8],6,100),
-    ([8,10,12,10],6,100),
-    ([10,8,12,10],6,100),
-    ([10,10,12,8],5,120),
+    ([12,8,10,10],5,120),
+    ([12,10,8,10],6,100),
+    ([12,10,10,8],6,100),
     ([8,10,10,12],6,100),
     ([10,8,10,12],6,100),
     ([10,10,8,12],5,120),
+    ([8,10,12,10],6,100),
+    ([10,8,12,10],6,100),
+    ([10,10,12,8],5,120),
 ]
 
 class Fundamentalist:
     def __init__(self, init_obs, num_agents):
         self.r = 2.0 # 
+        self.is_discrete = False
         self.num_agents = num_agents
         self.processed_transaction_id = 0
 
