@@ -217,7 +217,8 @@ class FiggieEnv(gym.Env):
             self.money[agent] += self.cards[agent][self.goal_suit]*10
         if self.output_debug_info:
             print("End of round:",self.money, "Bonus winner:", bonus_winner, "Cards:",self.cards, "Goal suit:",self.goal_suit)
-        return bonus_winner
+        stats = {'winner':np.argmax(self.money), 'bonus_winner':bonus_winner, 'money':self.money, 'goal_suit':self.goal_suit, 'transaction':self.transaction_history, 'cards':self.cards}
+        return stats
     
     def reset_game(self):
         #spades,clubs,diamonds,hearts
@@ -245,6 +246,10 @@ class FiggieEnv(gym.Env):
         self.card_counts.fill(0)
         self.bidavg.fill(0)
         self.offeravg.fill(self.offer_limit+1)
+        if self.output_debug_info:
+            print("Start Round!")
+            print(self.cards)
+            print("Goal suit:",self.goal_suit)
         
 
 # %%
@@ -319,15 +324,30 @@ class FiggieEnv(gym.Env):
         sell = np.array(action[12:16])
 
         if is_discrete == True:
-            bids += self.action_lookup[bids]
-            offers -= self.action_lookup[offers]
+            bids = self.bids + self.action_lookup[bids]
+            offers = self.offers - self.action_lookup[offers]
 
-        bids = np.clip(self.bids,0,self.bid_limit)
-        offers = np.clip(self.offers,0,self.offer_limit+1)
+        for i in range(4):
+            if offers[i] == 0:
+                offers[i] = self.offer_limit + 1
+
+        bids = np.clip(bids,0,self.bid_limit)
+        offers = np.clip(offers,0,self.offer_limit+1)
 
         actions_invalid = False
 
         reward = 0
+
+        #check if we have the cards and the money
+        valid_bids = np.nonzero(bids)
+        valid_offers = np.nonzero(offers-(self.offer_limit+1))
+        enoughmoneytobid = np.sum(bids[valid_bids]) <= self.money[agentid]
+        if enoughmoneytobid and np.all(self.cards[agentid][valid_offers]):
+            self.bidders[valid_bids] = agentid
+            self.offerers[valid_offers] = agentid
+            self.bids[valid_bids] = bids[valid_bids]
+            self.offers[valid_offers] = offers[valid_offers]
+        
 
         #Penalize invalid moves
         for i in range(4):
@@ -335,15 +355,6 @@ class FiggieEnv(gym.Env):
                 reward -= 0.5
             if sell[i] == 1 and (self.bidders[i] == agentid):
                 reward -= 0.5
-
-        #check if we have the cards and the money
-        enoughmoneytobid = np.sum((self.bids + self.action_lookup[bids])[np.nonzero(bids)]) <= self.money[agentid]
-        if enoughmoneytobid and np.all(self.cards[agentid][np.nonzero(offers)]):
-            self.bidders[np.nonzero(bids)] = agentid
-            self.offerers[np.nonzero(offers)] = agentid
-            self.bids = bids
-            self.offers = offers
-            
 
         #process buy, figgie lets you go into the negatives
         
@@ -430,7 +441,8 @@ class FiggieEnv(gym.Env):
                 observation, _, terminated, _ , info = self.takestep(self.agents[i].get_action(observation,info),i, is_discrete=self.agents[i].is_discrete)
 
         if terminated == True:
-            bonus_winner = self.end_round()
+            stats = self.end_round()
+            info["stats"] = stats
             #Incentivize getting money
             if np.argmax(self.money) == 0:
                 reward += 20

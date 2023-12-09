@@ -25,8 +25,8 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
         # randomly decide to buy or sell
         if random.choice([0,1]) == 1:
             # buy
-            # p = random.uniform(0, pb[i])
-            p = random.uniform(pb[i] * 0.8, pb[i] * 1.1)
+            p = math.ceil(random.uniform(0.6*pb[i], pb[i]))
+            # p = random.uniform(pb[i] * 0.8, pb[i] * 1.1)
             up_price = int(p - cur_bids[i])
             if cur_offers[i] <= p:
                 action[8+i] = 1
@@ -36,8 +36,8 @@ def get_action_from_expected_value(pb, ps, cur_bids, cur_offers):
                 action[i] = p
         else:
             # sell
-            # p = random.uniform(ps[i], ps[i] * 2)
-            p = random.uniform(ps[i] * 0.9, ps[i] * 1.1)
+            p = math.floor(random.uniform(ps[i], ps[i] * 1.4))
+            # p = random.uniform(ps[i] * 0.9, ps[i] * 1.1)
             down_price = int(cur_offers[i] - p)
             if cur_bids[i] >= p:
                 action[12+i] = 1
@@ -70,7 +70,8 @@ class NoiseTrader:
 
 class RandomTrader:
     def __init__(self, init_obs):
-        self.is_discrete = True
+        # self.is_discrete = True
+        self.is_discrete = False
         self.sigma = 1
 
     def get_action(self, obs, info):
@@ -84,10 +85,12 @@ class RandomTrader:
             elif dec < 0.5:
                 action[12+suit] = 1
             elif dec < 0.75:
-                act = random.randint(0,5)
+                # act = random.randint(0,5)
+                act = random.randint(1,10)
                 action[suit] = act
             else:
-                act = random.randint(0,5)
+                # act = random.randint(0,5)
+                act = random.randint(1,10)
                 action[suit+4] = act
         return action
 
@@ -109,20 +112,24 @@ DECK = [
 ]
 
 class Fundamentalist:
-    def __init__(self, init_obs, num_agents):
-        self.r = 2.0 # 
+    def __init__(self, num_agents, agentid):
+        self.r = 1.3 # 
         self.is_discrete = False
         self.num_agents = num_agents
         self.processed_transaction_id = 0
+        self.agentid = agentid
 
-    def deck_likelihood(self, cardcounts):
+    def deck_likelihood(self, cardcounts, cards):
         '''
         Calc deck likelihood distribution.
         '''
         tot_card_seen = [0] * 4
         for i in range(4):
             for j in range(self.num_agents):
-                tot_card_seen[i] += cardcounts[j][i]
+                if j == self.agentid:
+                    tot_card_seen[i] += cards[i]
+                else:
+                    tot_card_seen[i] += cardcounts[j][i]
         comb = np.ones(12) # possible combinations of each deck
         for j, (cards, majority, payoff) in enumerate(DECK):
             for i in range(4):
@@ -164,7 +171,11 @@ class Fundamentalist:
             if n[j] == 0:
                 ps.append(None)
             else:
-                ps.append(self.get_eb(j, n[j] - 1, m))
+                tmp = self.get_eb(j, n[j] - 1, m)
+                if tmp >= 8: # a threshold for selling
+                    ps.append(50)
+                else:
+                    ps.append(tmp)
         return pb, ps
 
     def delete_outdated_transactions(self):
@@ -175,7 +186,7 @@ class Fundamentalist:
         pass
 
     def get_action(self, obs, info):
-        m = self.deck_likelihood(obs["cardcounts"])
+        m = self.deck_likelihood(obs["cardcounts"], obs["cards"])
         pb, ps = self.estimate_trade_value(m, obs["cards"])
         action = get_action_from_expected_value(pb, ps, obs["bids"], obs["offers"])  
         # self.delete_outdated_transactions()
