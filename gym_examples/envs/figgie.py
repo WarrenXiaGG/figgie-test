@@ -93,6 +93,7 @@ Let us look at the source code of ``GridWorldEnv`` piece by piece:
 # declaration of ``GridWorldEnv`` and the implementation of ``__init__``:
 
 import numpy as np
+import random
 
 import gymnasium as gym
 from gymnasium import spaces
@@ -101,7 +102,7 @@ from gymnasium import spaces
 class FiggieEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None,agents=[],round_limit = 100, output_debug_info=False):
+    def __init__(self, render_mode=None,agents=[],round_limit = 100, output_debug_info=False,agentpool=[]):
         self.window_size = 512  # The size of the PyGame window
         self.num_agents = len(agents)
         self.round_limit = round_limit
@@ -111,6 +112,8 @@ class FiggieEnv(gym.Env):
         self.cards = np.zeros((self.num_agents,4),dtype='i')
         self.bids = np.zeros((4),dtype='i')
         self.offers = np.zeros((4),dtype='i')
+        self.bidavg = np.zeros((4))
+        self.offeravg = np.zeros((4))
         self.bidders = np.zeros((4),dtype='i')
         self.offerers = np.zeros((4),dtype='i')
         self.money_per_agent = 500
@@ -118,8 +121,10 @@ class FiggieEnv(gym.Env):
         self.bid_limit = 100
         self.action_lookup = np.array([0,1,2,4,8,16])
         self.agents = agents
+        self.agentpool = agentpool
         self.card_counts = np.zeros((self.num_agents,4),dtype='i')
         self.output_debug_info = output_debug_info
+        self.smoothing = 0.65
         print(agents)
 
         #Money per agent, buy offers, sell offers, bool array for if you are the one selling or buying, your cards, num cards,you
@@ -135,6 +140,8 @@ class FiggieEnv(gym.Env):
                 "you": spaces.Box(0, 2, shape=(self.num_agents,), dtype=int),
                 "cardcounts": spaces.Box(0,41,shape=(self.num_agents,4), dtype=int),
                 "stepsremaining":spaces.Box(0,1,shape=(1,),dtype=float),
+                "bidavg": spaces.Box(0,102,shape=(4,),dtype=float),
+                "offeravg": spaces.Box(0,102,shape=(4,),dtype=float),
             }
         )
 
@@ -190,7 +197,8 @@ class FiggieEnv(gym.Env):
         
         return {"money": self.money, "bids": self.bids, "offers": self.offers, "bidder":bidder, "offerer":offerer,
                 "cards": self.cards[agent_id], "numcards": numcards, "you": you,"cardcounts": self.card_counts,
-                "stepsremaining":np.array([((self.round_limit-self.curr_round)/self.round_limit)]),}
+                "stepsremaining":np.array([((self.round_limit-self.curr_round)/self.round_limit)]),
+                "bidavg": self.bidavg, "offeravg": self.offeravg}
 
 # %%
 # We can also implement a similar method for the auxiliary information
@@ -235,6 +243,8 @@ class FiggieEnv(gym.Env):
         self.curr_round = 0
         self.curr_player = 0
         self.card_counts.fill(0)
+        self.bidavg.fill(0)
+        self.offeravg.fill(self.offer_limit+1)
         
 
 # %%
@@ -275,6 +285,8 @@ class FiggieEnv(gym.Env):
 
         observation = self._get_obs(0)
         self.transaction_history = []
+        #self.agents = ['ppo']
+        #self.agents.extend(random.choices(self.agentpool, k=4))
         #print(observation)
         info = self._get_info()
         info["transaction_history"] = self.transaction_history
@@ -340,6 +352,7 @@ class FiggieEnv(gym.Env):
             if buy[i] == 1 and not (self.offerers[i] == agentid) and not (self.offerers[i] == -1) and self.money[agentid] >= self.offers[i]:
                 #print("{} buys {} from {} for ${}".format(agentid,i,self.offerers[i],self.offers[i]))
                 self.transaction_history.append([self.offerers[i], agentid, i, self.offers[i]])
+                self.offeravg[i] =  self.smoothing*self.offers[i] + (1-self.smoothing) * self.offeravg[i]
 
                 self.card_counts[agentid][i] += 1
                 self.card_counts[self.offerers[i]][i] = max(self.card_counts[self.offerers[i]][i] - 1, 0)
@@ -367,6 +380,7 @@ class FiggieEnv(gym.Env):
 
                     self.card_counts[self.bidders[i]][i] += 1
                     self.card_counts[agentid][i] = max(self.card_counts[agentid][i] - 1, 0)
+                    self.bidavg[i] =  self.smoothing*self.bids[i] + (1-self.smoothing) * self.bidavg[i]
                     
                     self.money[agentid] += self.bids[i]
                     self.money[self.bidders[i]] -= self.bids[i]
@@ -435,6 +449,8 @@ class FiggieEnv(gym.Env):
             #    reward += 10
             if self.output_debug_info:
                 print(f"End of Round! Money:{self.money[0]}, Last Step Reward:{reward}")
+        #print("Bids",observation['bidavg'])
+        #print("offers",observation['offeravg'])
         return observation,reward,terminated,False,info
 # %%
 # Rendering
