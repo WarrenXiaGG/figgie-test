@@ -52,7 +52,7 @@ if args.skip_eval == False:
     winner = []
     for epoch in range(args.eval_epoch):
         obs, info = wrapped_env.reset()
-        # print(obs)
+        # print(obs) 
         terminated = False
         while True:
             action, _ = model.predict(obs)

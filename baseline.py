@@ -65,8 +65,57 @@ class NoiseTrader:
                 continue
             else:
                 pb[i] *= np.exp(np.random.normal(0, self.sigma))
-        action = get_action_from_expected_value(pb, pb, obs["bids"], obs["offers"])  
+        action = self.get_action_from_expected_value(pb, pb, obs["bids"], obs["offers"])  
         return action
+    
+    def get_action_from_expected_value(self, pb, ps, cur_bids, cur_offers):
+        '''
+        parameters:
+        pb: expected value for buying cards
+        ps: expected value for selling cards
+        cur_offers & cur_bids: current price
+        hb: lowest sell order price in the history (not considering for now)
+        hs: highest buy order price in the history (not considering for now)
+        returns:
+            action array: penny_up, penny_down, buy, sell (4*4)
+        '''
+        action = np.zeros(16, dtype=int)
+        for i in range(4):
+            if pb[i] is None or ps[i] is None:
+                continue
+            # randomly decide to buy or sell
+            if random.choice([0,1]) == 1:
+                # buy
+                p = math.ceil(random.uniform(0.6*pb[i], pb[i]))
+                # p = random.uniform(pb[i] * 0.8, pb[i] * 1.1)
+                up_price = int(p - cur_bids[i])
+                if cur_offers[i] <= p:
+                    action[8+i] = 1
+                elif up_price > 0:
+                    # # find the best action to approx price p
+                    # action[i] = min(np.searchsorted(action_lookup, up_price), 5)
+                    action[i] = p
+            else:
+                # sell
+                p = math.floor(random.uniform(ps[i], ps[i] * 1.4))
+                # p = random.uniform(ps[i] * 0.9, ps[i] * 1.1)
+                down_price = int(cur_offers[i] - p)
+                if cur_bids[i] >= p:
+                    action[12+i] = 1
+                elif down_price > 0:
+                    # action[4+i] = min(np.searchsorted(action_lookup, down_price), 5)
+                    action[4+i] = p
+        if random.random() < 0.2:
+            dec = random.random()
+            if dec < 0.5:
+                dec = random.random()
+                suit = random.randint(0,3)
+                if dec < 0.5:
+                    action[suit+8] = 1
+                else:
+                    action[suit+12] = 1
+        return action
+
 
 class RandomTrader:
     def __init__(self, init_obs):
